@@ -210,7 +210,7 @@ export async function chatWithAgent(messages: ChatMessage[]): Promise<string> {
     const client = getClient();
     const completion = await client.chat.completions.create({
       messages: [systemMessage, ...messages],
-      model: "meta/llama-3.3-70b-instruct",
+      model: "nvidia/nemotron-3-ultra-550b-a55b",
       temperature: 0.3,
       max_tokens: 1024,
       tools: NVIDIA_TOOLS,
@@ -239,7 +239,7 @@ export async function chatWithAgent(messages: ChatMessage[]): Promise<string> {
               content: result,
             },
           ],
-          model: "meta/llama-3.3-70b-instruct",
+          model: "nvidia/nemotron-3-ultra-550b-a55b",
           temperature: 0.7,
           max_tokens: 1024,
         });
