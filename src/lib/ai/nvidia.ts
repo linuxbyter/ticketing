@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { db } from "@/lib/db";
-import { orders, events, tickets, payments } from "@/lib/db/schema";
+import { orders, events, tickets, ticketTiers, payments } from "@/lib/db/schema";
 import { eq, sql, count, sum } from "drizzle-orm";
 
 function getClient() {
@@ -118,6 +118,53 @@ const tools: AgentTool[] = [
       }
     },
   },
+  {
+    name: "create_event",
+    description: "Create a new event with ticket tiers. Pass event_data as a JSON string with keys: title_ja, title_en, title_zh, venue, event_date (ISO string), and optional: description_ja, description_en, description_zh, address, image_url, tiers (array of {name_ja, name_en, name_zh, price, quantity_total}).",
+    execute: async (args) => {
+      try {
+        const data = JSON.parse(args.event_data);
+
+        if (!data.title_ja || !data.title_en || !data.title_zh || !data.venue || !data.event_date) {
+          return "エラー: 必須フィールドが不足しています (title_ja, title_en, title_zh, venue, event_date)";
+        }
+
+        const [event] = await db
+          .insert(events)
+          .values({
+            titleJa: data.title_ja,
+            titleEn: data.title_en,
+            titleZh: data.title_zh,
+            descriptionJa: data.description_ja || null,
+            descriptionEn: data.description_en || null,
+            descriptionZh: data.description_zh || null,
+            venue: data.venue,
+            address: data.address || null,
+            eventDate: new Date(data.event_date),
+            imageUrl: data.image_url || null,
+            status: "active",
+          })
+          .returning();
+
+        if (data.tiers && Array.isArray(data.tiers) && data.tiers.length > 0) {
+          await db.insert(ticketTiers).values(
+            data.tiers.map((t: Record<string, unknown>) => ({
+              eventId: event.id,
+              nameJa: t.name_ja as string,
+              nameEn: t.name_en as string,
+              nameZh: t.name_zh as string,
+              price: String(t.price),
+              quantityTotal: t.quantity_total as number,
+            }))
+          );
+        }
+
+        return `イベント「${data.title_ja}」を作成しました！\nID: ${event.id}\n会場: ${data.venue}\n日時: ${data.event_date}\nチケット tier数: ${data.tiers?.length ?? 0}`;
+      } catch (e) {
+        return `Error: ${e instanceof Error ? e.message : "Unknown error"}`;
+      }
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are an AI agent for Kippo🌸, a Japanese ticketing platform. You have direct access to the database and can perform actions.
@@ -127,6 +174,7 @@ CAPABILITIES:
 - List pending orders
 - List events
 - Approve or reject orders
+- Create new events with ticket tiers
 
 AVAILABLE TOOLS:
 - get_stats: Get dashboard statistics
@@ -134,6 +182,7 @@ AVAILABLE TOOLS:
 - list_events: Show all events
 - approve_order: Approve an order (provide order_id)
 - reject_order: Reject an order (provide order_id)
+- create_event: Create a new event (provide event_data as JSON)
 
 RULES:
 - Always respond in Japanese unless the user writes in another language
@@ -142,10 +191,10 @@ RULES:
 - Be concise and helpful
 
 DATABASE SCHEMA:
-- events: id, title_ja, title_en, title_zh, venue, event_date, status
+- events: id, title_ja, title_en, title_zh, description_ja, description_en, description_zh, venue, address, event_date, image_url, status
 - orders: id, customer_name, customer_email, status, total_amount, created_at, approved_at
 - tickets: id, event_id, tier_id, ticket_code, status
-- ticket_tiers: id, event_id, name_ja, price, quantity_total, quantity_sold
+- ticket_tiers: id, event_id, name_ja, name_en, name_zh, price, quantity_total, quantity_sold
 - payments: id, order_id, method, amount, status`;
 
 const NVIDIA_TOOLS = [
@@ -198,6 +247,23 @@ const NVIDIA_TOOLS = [
           order_id: { type: "string", description: "The order ID to reject" },
         },
         required: ["order_id"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "create_event",
+      description: "Create a new event with ticket tiers",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          event_data: {
+            type: "string",
+            description: 'JSON string with event details: {title_ja, title_en, title_zh, venue, event_date (ISO), description_ja?, description_en?, description_zh?, address?, image_url?, tiers?: [{name_ja, name_en, name_zh, price, quantity_total}]}',
+          },
+        },
+        required: ["event_data"],
       },
     },
   },
