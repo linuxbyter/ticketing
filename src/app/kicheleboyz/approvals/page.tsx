@@ -36,8 +36,9 @@ export default function ApprovalsPage() {
 
   useEffect(() => { fetchOrders(); }, []);
 
-  const handleApprove = async (orderId: string) => {
-    setProcessing(orderId);
+const handleApprove = async (orderId: string) => {
+  setProcessing(orderId);
+  try {
     await fetch("/api/admin/approve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -46,11 +47,17 @@ export default function ApprovalsPage() {
     setSelectedOrder(null);
     setNotes("");
     fetchOrders();
+  } catch (error) {
+    console.error("Approve error:", error);
+    // Optionally show error to user
+  } finally {
     setProcessing(null);
-  };
+  }
+};
 
-  const handleReject = async (orderId: string) => {
-    setProcessing(orderId);
+const handleReject = async (orderId: string) => {
+  setProcessing(orderId);
+  try {
     await fetch("/api/admin/reject", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,8 +66,13 @@ export default function ApprovalsPage() {
     setSelectedOrder(null);
     setNotes("");
     fetchOrders();
+  } catch (error) {
+    console.error("Reject error:", error);
+    // Optionally show error to user
+  } finally {
     setProcessing(null);
-  };
+  }
+};
 
   if (loading) {
     return (
