@@ -28,41 +28,41 @@ export default function ScrapedEventsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isScraping, setIsScraping] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
 
   const fetchEvents = async () => {
-    setIsLoading(true);
     try {
       const res = await fetch("/api/admin/scraped-events");
+      if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
-      setEvents(data);
+      setEvents(Array.isArray(data) ? data : []);
     } catch {
-      console.error("Failed to fetch");
+      console.error("Failed to fetch events");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch("/api/admin/scraped-events");
-        const data = await res.json();
-        setEvents(data);
-      } catch {
-        console.error("Failed to fetch");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
+    fetchEvents();
   }, []);
 
   const handleScrape = async () => {
     setIsScraping(true);
+    setMessage("");
     try {
-      await fetch("/api/admin/scraped-events/scrape");
+      const res = await fetch("/api/admin/scraped-events/scrape");
+      const data = await res.json();
+      if (data.success) {
+        const total = data.scraped?.total ?? 0;
+        setMessage(`${total}件のイベントを取得しました`);
+      } else {
+        setMessage("スクレイピングに失敗しました");
+      }
       await fetchEvents();
+    } catch (e) {
+      setMessage("エラーが発生しました");
+      console.error("Scrape error:", e);
     } finally {
       setIsScraping(false);
     }
@@ -77,6 +77,8 @@ export default function ScrapedEventsPage() {
         body: JSON.stringify({ scraped_event_id: id }),
       });
       await fetchEvents();
+    } catch {
+      console.error("Failed to approve");
     } finally {
       setApprovingId(null);
     }
@@ -126,6 +128,12 @@ export default function ScrapedEventsPage() {
         </Button>
       </div>
 
+      {message && (
+        <div className="text-sm text-muted-foreground bg-secondary/50 px-4 py-2 rounded-lg">
+          {message}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -133,7 +141,7 @@ export default function ScrapedEventsPage() {
       ) : events.length === 0 ? (
         <Card className="border-border/50">
           <CardContent className="py-12 text-center text-muted-foreground">
-            スクレイピングイベントはありません
+            スクレイピングイベントはありません。「今すぐスクレイプ」をクリックしてください。
           </CardContent>
         </Card>
       ) : (
@@ -145,13 +153,6 @@ export default function ScrapedEventsPage() {
             >
               <CardContent className="p-4">
                 <div className="flex gap-4">
-                  {event.imageUrl && (
-                    <img
-                      src={event.imageUrl}
-                      alt={event.title}
-                      className="w-20 h-20 object-cover rounded-lg"
-                    />
-                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span
@@ -175,18 +176,18 @@ export default function ScrapedEventsPage() {
                     <h3 className="font-semibold text-sm truncate">
                       {event.title}
                     </h3>
-                    <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                      {event.venue && <p>会場: {event.venue}</p>}
-                      {event.eventDate && <p>日時: {event.eventDate}</p>}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {event.venue && <span>会場: {event.venue} · </span>}
+                      {event.eventDate && <span>{event.eventDate}</span>}
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 shrink-0">
+                  <div className="flex gap-2 shrink-0">
                     {event.status === "pending" && (
                       <>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="rounded-lg h-8 px-3 border-green-500/20 text-green-600 hover:bg-green-500/10"
+                          className="h-8 px-3 border-green-500/20 text-green-600 hover:bg-green-500/10"
                           onClick={() => handleApprove(event.id)}
                           disabled={approvingId === event.id}
                         >
@@ -199,7 +200,7 @@ export default function ScrapedEventsPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="rounded-lg h-8 px-3 border-red-500/20 text-red-600 hover:bg-red-500/10"
+                          className="h-8 px-3 border-red-500/20 text-red-600 hover:bg-red-500/10"
                           onClick={() => handleIgnore(event.id)}
                         >
                           <X className="w-3 h-3" />
@@ -214,7 +215,7 @@ export default function ScrapedEventsPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-lg h-8 px-3"
+                        className="h-8 px-3"
                       >
                         <ExternalLink className="w-3 h-3" />
                       </Button>
