@@ -28,10 +28,13 @@ export async function POST(request: NextRequest) {
     }
 
     let screenshotUrl = null;
+    let screenshotBytes: ArrayBuffer | null = null;
+    let screenshotType = "image/jpeg";
     if (screenshot) {
-      const bytes = await screenshot.arrayBuffer();
-      const base64 = Buffer.from(bytes).toString("base64");
-      screenshotUrl = `data:${screenshot.type};base64,${base64}`;
+      screenshotBytes = await screenshot.arrayBuffer();
+      screenshotType = screenshot.type || "image/jpeg";
+      const base64 = Buffer.from(screenshotBytes).toString("base64");
+      screenshotUrl = `data:${screenshotType};base64,${base64}`;
     }
 
     const [order] = await db
@@ -98,9 +101,8 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({ chat_id: CHAT_ID, text, parse_mode: "Markdown" }),
           });
 
-          if (screenshot) {
-            const bytes = await screenshot.arrayBuffer();
-            const blob = new Blob([new Uint8Array(bytes)], { type: screenshot.type || "image/jpeg" });
+          if (screenshotBytes) {
+            const blob = new Blob([new Uint8Array(screenshotBytes)], { type: screenshotType });
             const fd = new FormData();
             fd.append("chat_id", CHAT_ID);
             fd.append("caption", "支払い証明 " + orderId + " - " + name);

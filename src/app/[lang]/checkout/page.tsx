@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,11 +21,7 @@ interface EventInfo {
   tiers: TierInfo[];
 }
 
-function CheckoutContent() {
-  const searchParams = useSearchParams();
-  const eventId = searchParams.get("event");
-  const tierId = searchParams.get("tier");
-
+export default function CheckoutPage() {
   const [submitted, setSubmitted] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -37,24 +32,32 @@ function CheckoutContent() {
   const [eventData, setEventData] = useState<EventInfo | null>(null);
   const [selectedTier, setSelectedTier] = useState<TierInfo | null>(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [tierId, setTierId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!eventId) {
+    const params = new URLSearchParams(window.location.search);
+    const eid = params.get("event");
+    const tid = params.get("tier");
+    setEventId(eid);
+    setTierId(tid);
+
+    if (!eid) {
       setLoadingEvent(false);
       return;
     }
-    fetch(`/api/public/events/${eventId}`)
+    fetch(`/api/public/events/${eid}`)
       .then((r) => r.json())
       .then((data: EventInfo) => {
         setEventData(data);
-        if (tierId) {
-          const tier = data.tiers.find((t) => t.id === tierId);
+        if (tid) {
+          const tier = data.tiers.find((t: TierInfo) => t.id === tid);
           if (tier) setSelectedTier(tier);
         }
         setLoadingEvent(false);
       })
       .catch(() => setLoadingEvent(false));
-  }, [eventId, tierId]);
+  }, []);
 
   const eventName = eventData?.titleJa || "チケット";
   const tierName = selectedTier?.nameJa || "一般席";
@@ -131,6 +134,7 @@ function CheckoutContent() {
         data = await res.json();
       } catch {
         setError("サーバーからの応答が無効です。もう一度お試しください。");
+        setUploading(false);
         return;
       }
 
@@ -138,11 +142,11 @@ function CheckoutContent() {
         setSubmitted(true);
       } else {
         setError(data.error || "エラーが発生しました。もう一度お試しください。");
+        setUploading(false);
       }
     } catch (e) {
       console.error("Order submit error:", e);
       setError("ネットワークエラーが発生しました。もう一度お試しください。");
-    } finally {
       setUploading(false);
     }
   };
@@ -208,7 +212,6 @@ function CheckoutContent() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Ticket summary */}
           <div className="bg-card rounded-2xl border border-border/50 p-5">
             <div className="flex items-center justify-between">
               <div>
@@ -219,14 +222,12 @@ function CheckoutContent() {
             </div>
           </div>
 
-          {/* Payment */}
           <div className="bg-card rounded-2xl border border-border/50 p-5 space-y-4">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-foreground">支払い方法</h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-pink-50 text-pink-600 border border-pink-100">PayPay</span>
             </div>
 
-            {/* Open PayPay button */}
             <a
               href="paypay://send?phone=08019932477&amount=25000"
               onClick={(e) => {
@@ -254,7 +255,6 @@ function CheckoutContent() {
               <div className="h-px flex-1 bg-border/50" />
             </div>
 
-            {/* Phone number + copy */}
             <div className="bg-gradient-to-br from-pink-50/80 to-rose-50/50 rounded-xl p-4 space-y-3">
               <div className="bg-white rounded-lg p-3 border border-pink-100/50">
                 <p className="text-[10px] text-muted-foreground mb-1">PayPay電話番号</p>
@@ -292,7 +292,6 @@ function CheckoutContent() {
             </div>
           </div>
 
-          {/* Customer info + upload */}
           <div className="bg-card rounded-2xl border border-border/50 p-5 space-y-5">
             <h3 className="text-sm font-semibold text-foreground">ご注文情報</h3>
 
@@ -326,7 +325,6 @@ function CheckoutContent() {
               />
             </div>
 
-            {/* Upload */}
             <div>
               <Label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                 支払い証明スクリーンショット <span className="text-destructive">*</span>
@@ -392,17 +390,5 @@ function CheckoutContent() {
         </form>
       </div>
     </main>
-  );
-}
-
-export default function CheckoutPage() {
-  return (
-    <Suspense fallback={
-      <main className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-      </main>
-    }>
-      <CheckoutContent />
-    </Suspense>
   );
 }
