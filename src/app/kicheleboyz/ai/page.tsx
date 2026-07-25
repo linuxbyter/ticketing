@@ -156,7 +156,7 @@ export default function AiAssistantPage() {
             </div>
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
               <Zap className="w-3 h-3" />
-              <span>Groq AI</span>
+              <span>NVIDIA AI</span>
             </div>
           </div>
         </div>

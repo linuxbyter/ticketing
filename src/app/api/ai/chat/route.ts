@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { chatWithAgent } from "@/lib/ai/groq";
+import { chatWithAgent } from "@/lib/ai/nvidia";
 
 export async function POST(request: NextRequest) {
   try {

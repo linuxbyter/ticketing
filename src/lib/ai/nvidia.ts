@@ -1,10 +1,13 @@
-import Groq from "groq-sdk";
+import OpenAI from "openai";
 import { db } from "@/lib/db";
-import { orders, events, tickets, ticketTiers, payments } from "@/lib/db/schema";
+import { orders, events, tickets, payments } from "@/lib/db/schema";
 import { eq, sql, count, sum } from "drizzle-orm";
 
-function getGroq() {
-  return new Groq({ apiKey: process.env.GROQ_API_KEY });
+function getClient() {
+  return new OpenAI({
+    baseURL: "https://integrate.api.nvidia.com/v1",
+    apiKey: process.env.NVIDIA_API_KEY,
+  });
 }
 
 interface ChatMessage {
@@ -145,7 +148,7 @@ DATABASE SCHEMA:
 - ticket_tiers: id, event_id, name_ja, price, quantity_total, quantity_sold
 - payments: id, order_id, method, amount, status`;
 
-const GROQ_TOOLS = [
+const NVIDIA_TOOLS = [
   {
     type: "function" as const,
     function: {
@@ -204,13 +207,13 @@ export async function chatWithAgent(messages: ChatMessage[]): Promise<string> {
   const systemMessage: ChatMessage = { role: "system", content: SYSTEM_PROMPT };
 
   try {
-    const groq = getGroq();
-    const completion = await groq.chat.completions.create({
+    const client = getClient();
+    const completion = await client.chat.completions.create({
       messages: [systemMessage, ...messages],
-      model: "llama-3.3-70b-versatile",
+      model: "meta/llama-3.3-70b-instruct",
       temperature: 0.3,
       max_tokens: 1024,
-      tools: GROQ_TOOLS,
+      tools: NVIDIA_TOOLS,
       tool_choice: "auto",
     });
 
@@ -225,8 +228,7 @@ export async function chatWithAgent(messages: ChatMessage[]): Promise<string> {
       if (tool) {
         const result = await tool.execute(funcArgs);
 
-        const groqClient = getGroq();
-        const followUp = await groqClient.chat.completions.create({
+        const followUp = await client.chat.completions.create({
           messages: [
             systemMessage,
             ...messages,
@@ -237,7 +239,7 @@ export async function chatWithAgent(messages: ChatMessage[]): Promise<string> {
               content: result,
             },
           ],
-          model: "llama3-70b-8192",
+          model: "meta/llama-3.3-70b-instruct",
           temperature: 0.7,
           max_tokens: 1024,
         });
