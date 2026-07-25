@@ -311,11 +311,11 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          <Button
-            type="submit"
-            disabled={uploading}
-            className="w-full h-13 rounded-xl text-sm font-medium gradient-sakura text-white border-0 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-50"
-          >
+<Button
+  type="submit"
+  disabled={uploading}
+  className="w-full h-12 rounded-xl text-sm font-medium gradient-sakura text-white border-0 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-50"
+>
             {uploading ? (
               <span className="flex items-center gap-2">
                 <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
