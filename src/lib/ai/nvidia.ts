@@ -1,7 +1,9 @@
 import OpenAI from "openai";
 import { db } from "@/lib/db";
-import { orders, events, tickets, ticketTiers, payments } from "@/lib/db/schema";
+import { orders, events, tickets, ticketTiers, payments, scrapedEvents } from "@/lib/db/schema";
 import { eq, sql, count, sum } from "drizzle-orm";
+import { runScrapers } from "@/lib/scraper";
+import { parseEventWithAI } from "./parse-event";
 
 function getClient() {
   return new OpenAI({
@@ -165,6 +167,90 @@ const tools: AgentTool[] = [
       }
     },
   },
+  {
+    name: "scrape_events_now",
+    description: "Trigger immediate scrape of Japanese event sites (eplus, livefans, pia). Returns count of new events found.",
+    execute: async () => {
+      try {
+        const result = await runScrapers();
+        return `スクレイピング完了！\neplus: ${result.eplus}件\nlivefans: ${result.livefans}件\npia: ${result.pia}件\n合計: ${result.total}件の新しいイベントを発見しました。`;
+      } catch (e) {
+        return `Error: ${e instanceof Error ? e.message : "Unknown error"}`;
+      }
+    },
+  },
+  {
+    name: "list_scraped_events",
+    description: "List pending scraped events waiting for approval",
+    execute: async () => {
+      try {
+        const pending = await db.select().from(scrapedEvents).where(eq(scrapedEvents.status, "pending"));
+        if (pending.length === 0) return "承認待ちのスクレイピングイベントはありません。";
+        return JSON.stringify(pending.map(e => ({
+          id: e.id,
+          title: e.title,
+          venue: e.venue,
+          date: e.eventDate,
+          source: e.source,
+          url: e.sourceUrl,
+        })), null, 2);
+      } catch (e) {
+        return `Error: ${e instanceof Error ? e.message : "Unknown error"}`;
+      }
+    },
+  },
+  {
+    name: "approve_scraped_event",
+    description: "Approve a scraped event and create it in the database. Provide the scraped_event_id.",
+    execute: async (args) => {
+      try {
+        const scrapedId = args.scraped_event_id;
+        const [scraped] = await db.select().from(scrapedEvents).where(eq(scrapedEvents.id, scrapedId));
+        if (!scraped) return `スクレイピングイベント ${scrapedId} が見つかりません。`;
+        if (scraped.status !== "pending") return `このイベントは既に${scraped.status}です。`;
+
+        const parsed = await parseEventWithAI({
+          title: scraped.title,
+          venue: scraped.venue || "",
+          eventDate: scraped.eventDate || "",
+          imageUrl: scraped.imageUrl || "",
+        });
+
+        const [event] = await db
+          .insert(events)
+          .values({
+            titleJa: parsed.title_ja,
+            titleEn: parsed.title_en,
+            titleZh: parsed.title_zh,
+            descriptionJa: parsed.description_ja || null,
+            venue: parsed.venue,
+            eventDate: new Date(parsed.event_date),
+            imageUrl: parsed.image_url || null,
+            status: "active",
+          })
+          .returning();
+
+        if (parsed.suggested_tiers && parsed.suggested_tiers.length > 0) {
+          await db.insert(ticketTiers).values(
+            parsed.suggested_tiers.map(t => ({
+              eventId: event.id,
+              nameJa: t.name_ja,
+              nameEn: t.name_en,
+              nameZh: t.name_zh,
+              price: String(t.price),
+              quantityTotal: t.quantity_total,
+            }))
+          );
+        }
+
+        await db.update(scrapedEvents).set({ status: "created" }).where(eq(scrapedEvents.id, scrapedId));
+
+        return `イベント「${parsed.title_ja}」を作成しました！\nID: ${event.id}\n会場: ${parsed.venue}\n日時: ${parsed.event_date}\nチケット tier数: ${parsed.suggested_tiers?.length ?? 0}`;
+      } catch (e) {
+        return `Error: ${e instanceof Error ? e.message : "Unknown error"}`;
+      }
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are an AI agent for Kippo🌸, a Japanese ticketing platform. You have direct access to the database and can perform actions.
@@ -175,6 +261,8 @@ CAPABILITIES:
 - List events
 - Approve or reject orders
 - Create new events with ticket tiers
+- Scrape events from Japanese ticket sites (eplus, livefans, pia)
+- Manage scraped events (list, approve, create from)
 
 AVAILABLE TOOLS:
 - get_stats: Get dashboard statistics
@@ -183,6 +271,9 @@ AVAILABLE TOOLS:
 - approve_order: Approve an order (provide order_id)
 - reject_order: Reject an order (provide order_id)
 - create_event: Create a new event (provide event_data as JSON)
+- scrape_events_now: Trigger immediate scrape of event sites
+- list_scraped_events: Show pending scraped events
+- approve_scraped_event: Approve a scraped event and create it (provide scraped_event_id)
 
 RULES:
 - Always respond in Japanese unless the user writes in another language
@@ -195,7 +286,8 @@ DATABASE SCHEMA:
 - orders: id, customer_name, customer_email, status, total_amount, created_at, approved_at
 - tickets: id, event_id, tier_id, ticket_code, status
 - ticket_tiers: id, event_id, name_ja, name_en, name_zh, price, quantity_total, quantity_sold
-- payments: id, order_id, method, amount, status`;
+- payments: id, order_id, method, amount, status
+- scraped_events: id, source, source_url, title, venue, event_date, image_url, status`;
 
 const NVIDIA_TOOLS = [
   {
@@ -264,6 +356,36 @@ const NVIDIA_TOOLS = [
           },
         },
         required: ["event_data"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "scrape_events_now",
+      description: "Trigger immediate scrape of Japanese event sites",
+      parameters: { type: "object" as const, properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_scraped_events",
+      description: "List pending scraped events waiting for approval",
+      parameters: { type: "object" as const, properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "approve_scraped_event",
+      description: "Approve a scraped event and create it in the database",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          scraped_event_id: { type: "string", description: "The scraped event ID to approve" },
+        },
+        required: ["scraped_event_id"],
       },
     },
   },

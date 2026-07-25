@@ -150,3 +150,22 @@ export const emailLogs = pgTable("email_logs", {
   status: varchar("status", { length: 20 }).default("sent").notNull(),
   sentAt: timestamp("sent_at").defaultNow().notNull(),
 });
+
+export const scrapedEventStatusEnum = pgEnum("scraped_event_status", [
+  "pending",
+  "created",
+  "ignored",
+]);
+
+export const scrapedEvents = pgTable("scraped_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  source: varchar("source", { length: 50 }).notNull(),
+  sourceUrl: varchar("source_url", { length: 1000 }).notNull().unique(),
+  title: varchar("title", { length: 500 }).notNull(),
+  venue: varchar("venue", { length: 255 }),
+  eventDate: varchar("event_date", { length: 100 }),
+  imageUrl: varchar("image_url", { length: 1000 }),
+  rawHtml: text("raw_html"),
+  status: scrapedEventStatusEnum("status").default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
