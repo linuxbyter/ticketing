@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { orders, payments } from "@/lib/db/schema";
+import { orders, payments, orderItems, tickets } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
@@ -19,12 +20,13 @@ export async function POST(request: NextRequest) {
     const phone = formData.get("phone") as string || null;
     const amount = formData.get("amount") as string;
     const screenshot = formData.get("screenshot") as File | null;
+    const eventId = formData.get("eventId") as string || null;
+    const tierId = formData.get("tierId") as string || null;
 
     if (!email || !name || !amount) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Save screenshot to a temp URL or store as base64
     let screenshotUrl = null;
     if (screenshot) {
       const bytes = await screenshot.arrayBuffer();
@@ -32,7 +34,6 @@ export async function POST(request: NextRequest) {
       screenshotUrl = `data:${screenshot.type};base64,${base64}`;
     }
 
-    // Save order to database
     const [order] = await db
       .insert(orders)
       .values({
@@ -45,7 +46,6 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    // Save payment record
     await db.insert(payments).values({
       orderId: order.id,
       method: "paypay",
@@ -54,7 +54,24 @@ export async function POST(request: NextRequest) {
       status: "pending",
     });
 
-    // Send email + Telegram in background (don't block response)
+    if (eventId && tierId) {
+      const ticket = await db
+        .select()
+        .from(tickets)
+        .where(eq(tickets.tierId, tierId))
+        .limit(1)
+        .then((r) => r[0]);
+
+      if (ticket) {
+        await db.insert(orderItems).values({
+          orderId: order.id,
+          ticketId: ticket.id,
+          quantity: 1,
+          unitPrice: amount,
+        });
+      }
+    }
+
     Promise.allSettled([
       transporter.sendMail({
         from: '"Kippo🌸" <' + process.env.GMAIL_USER + ">",
@@ -95,6 +112,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, orderId: order.id });
   } catch (error) {
     console.error("Order creation error:", error);
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 }

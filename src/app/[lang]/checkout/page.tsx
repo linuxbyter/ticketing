@@ -1,13 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, X, Send, Copy, Check } from "lucide-react";
+import { ArrowLeft, Upload, X, Send, Copy, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 
-export default function CheckoutPage() {
+interface TierInfo {
+  id: string;
+  nameJa: string;
+  price: string;
+}
+
+interface EventInfo {
+  id: string;
+  titleJa: string;
+  venue: string;
+  eventDate: string;
+  tiers: TierInfo[];
+}
+
+function CheckoutContent() {
+  const searchParams = useSearchParams();
+  const eventId = searchParams.get("event");
+  const tierId = searchParams.get("tier");
+
   const [submitted, setSubmitted] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -15,12 +34,32 @@ export default function CheckoutPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "" });
   const [copied, setCopied] = useState(false);
+  const [eventData, setEventData] = useState<EventInfo | null>(null);
+  const [selectedTier, setSelectedTier] = useState<TierInfo | null>(null);
+  const [loadingEvent, setLoadingEvent] = useState(true);
 
-  const event = {
-    title: "よひろ 2026",
-    tier: "VIP席",
-    price: "25,000",
-  };
+  useEffect(() => {
+    if (!eventId) {
+      setLoadingEvent(false);
+      return;
+    }
+    fetch(`/api/public/events/${eventId}`)
+      .then((r) => r.json())
+      .then((data: EventInfo) => {
+        setEventData(data);
+        if (tierId) {
+          const tier = data.tiers.find((t) => t.id === tierId);
+          if (tier) setSelectedTier(tier);
+        }
+        setLoadingEvent(false);
+      })
+      .catch(() => setLoadingEvent(false));
+  }, [eventId, tierId]);
+
+  const eventName = eventData?.titleJa || "チケット";
+  const tierName = selectedTier?.nameJa || "一般席";
+  const price = selectedTier ? Number(selectedTier.price).toLocaleString() : "0";
+  const priceRaw = selectedTier?.price || "0";
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,22 +119,41 @@ export default function CheckoutPage() {
       const formData = new FormData();
       formData.append("email", form.email);
       formData.append("name", form.name);
-      formData.append("amount", "25000");
+      formData.append("amount", priceRaw);
       formData.append("screenshot", screenshot);
+      if (eventId) formData.append("eventId", eventId);
+      if (tierId) formData.append("tierId", tierId);
 
       const res = await fetch("/api/orders", { method: "POST", body: formData });
-      const data = await res.json();
-      if (data.success) {
+
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        setError("サーバーからの応答が無効です。もう一度お試しください。");
+        return;
+      }
+
+      if (res.ok && data.success) {
         setSubmitted(true);
       } else {
         setError(data.error || "エラーが発生しました。もう一度お試しください。");
       }
-    } catch {
-      setError("エラーが発生しました。もう一度お試しください。");
+    } catch (e) {
+      console.error("Order submit error:", e);
+      setError("ネットワークエラーが発生しました。もう一度お試しください。");
     } finally {
       setUploading(false);
     }
   };
+
+  if (loadingEvent) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </main>
+    );
+  }
 
   if (submitted) {
     return (
@@ -154,10 +212,10 @@ export default function CheckoutPage() {
           <div className="bg-card rounded-2xl border border-border/50 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground mb-0.5">{event.title}</p>
-                <p className="text-sm font-semibold text-foreground">{event.tier}</p>
+                <p className="text-xs text-muted-foreground mb-0.5">{eventName}</p>
+                <p className="text-sm font-semibold text-foreground">{tierName}</p>
               </div>
-              <p className="text-xl font-bold text-foreground">¥{event.price}</p>
+              <p className="text-xl font-bold text-foreground">¥{price}</p>
             </div>
           </div>
 
@@ -214,7 +272,7 @@ export default function CheckoutPage() {
               </div>
               <div className="bg-white rounded-lg p-3 border border-pink-100/50">
                 <p className="text-[10px] text-muted-foreground mb-0.5">お支払い金額</p>
-                <p className="text-2xl font-bold text-rose-600">¥{event.price}</p>
+                <p className="text-2xl font-bold text-rose-600">¥{price}</p>
               </div>
             </div>
 
@@ -311,11 +369,11 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-<Button
-  type="submit"
-  disabled={uploading}
-  className="w-full h-12 rounded-xl text-sm font-medium gradient-sakura text-white border-0 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-50"
->
+          <Button
+            type="submit"
+            disabled={uploading}
+            className="w-full h-12 rounded-xl text-sm font-medium gradient-sakura text-white border-0 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 disabled:opacity-50"
+          >
             {uploading ? (
               <span className="flex items-center gap-2">
                 <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -334,5 +392,17 @@ export default function CheckoutPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </main>
+    }>
+      <CheckoutContent />
+    </Suspense>
   );
 }

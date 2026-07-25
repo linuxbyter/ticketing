@@ -13,10 +13,20 @@ const handleI18nRouting = createMiddleware({
 });
 
 export default clerkMiddleware(async (auth, req) => {
-  // Skip i18n for admin and API routes
-  if (isAdminRoute(req) || isApiRoute(req)) {
-    if (isAdminRoute(req)) {
+  const url = req.nextUrl.pathname;
+
+  if (isApiRoute(req)) {
+    return NextResponse.next();
+  }
+
+  if (isAdminRoute(req)) {
+    try {
       await auth.protect();
+    } catch (e: any) {
+      if (e?.location) {
+        return NextResponse.redirect(e.location);
+      }
+      return NextResponse.next();
     }
     return NextResponse.next();
   }

@@ -32,18 +32,23 @@ export async function GET(request: NextRequest) {
 
     const result = await Promise.all(
       allOrders.map(async (order) => {
-        const items = await db
-          .select({
-            tierName: ticketTiers.nameJa,
-            eventName: events.titleJa,
-            quantity: orderItems.quantity,
-            unitPrice: orderItems.unitPrice,
-          })
-          .from(orderItems)
-          .innerJoin(tickets, eq(orderItems.ticketId, tickets.id))
-          .innerJoin(ticketTiers, eq(tickets.tierId, ticketTiers.id))
-          .innerJoin(events, eq(ticketTiers.eventId, events.id))
-          .where(eq(orderItems.orderId, order.id));
+        let items: any[] = [];
+        try {
+          items = await db
+            .select({
+              tierName: ticketTiers.nameJa,
+              eventName: events.titleJa,
+              quantity: orderItems.quantity,
+              unitPrice: orderItems.unitPrice,
+            })
+            .from(orderItems)
+            .leftJoin(tickets, eq(orderItems.ticketId, tickets.id))
+            .leftJoin(ticketTiers, eq(tickets.tierId, ticketTiers.id))
+            .leftJoin(events, eq(ticketTiers.eventId, events.id))
+            .where(eq(orderItems.orderId, order.id));
+        } catch {
+          items = [];
+        }
 
         return {
           ...order,
