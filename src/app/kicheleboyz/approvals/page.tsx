@@ -88,6 +88,9 @@ export default function ApprovalsPage() {
                 key={order.id}
                 className={`cursor-pointer transition-colors ${selectedOrder?.id === order.id ? "border-primary" : "hover:border-muted-foreground/50"}`}
                 onClick={() => setSelectedOrder(order)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedOrder(order); } }}
+                role="button"
+                tabIndex={0}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">

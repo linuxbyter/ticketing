@@ -208,12 +208,12 @@ export default function EventDetailPage() {
                           </span>
                           {isAvailable ? (
                             <Link href={`/checkout?event=${event.id}&tier=${tier.id}`}>
-                              <Button size="sm" className="h-8 px-4 rounded-full text-xs font-medium gradient-sakura text-white border-0">
+                              <Button size="sm" className="h-8 px-4 text-xs font-medium gradient-sakura text-white border-0">
                                 選択する
                               </Button>
                             </Link>
                           ) : (
-                            <Button size="sm" variant="secondary" disabled className="h-8 px-4 rounded-full text-xs">
+                            <Button size="sm" variant="secondary" disabled className="h-8 px-4 text-xs">
                               完売
                             </Button>
                           )}

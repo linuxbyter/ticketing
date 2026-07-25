@@ -109,10 +109,10 @@ function OrderContent({ orderId }: { orderId: string }) {
               </div>
 
               {/* Download button */}
-              <button className="w-full h-12 rounded-xl gradient-sakura text-white text-sm font-medium flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow">
+              <Button className="w-full h-12 gradient-sakura text-white text-sm font-medium flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow">
                 <Download className="w-4 h-4" />
                 チケットをダウンロード (PDF)
-              </button>
+              </Button>
             </div>
           </div>
         )}

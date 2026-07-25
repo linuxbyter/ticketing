@@ -243,7 +243,8 @@ export default function EventsManagementPage() {
                     <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
                     <button
                       onClick={() => { setImagePreview(null); setForm({ ...form, imageUrl: "" }); }}
-                      className="absolute top-2 right-2 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center text-white"
+                      aria-label="画像を削除"
+                      className="absolute top-2 right-2 w-6 h-6 bg-black/50 rounded-lg flex items-center justify-center text-white hover:bg-black/70 transition-colors"
                     >
                       <X className="w-3 h-3" />
                     </button>

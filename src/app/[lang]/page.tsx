@@ -38,29 +38,8 @@ function HomeContent() {
       </nav>
 
       {/* Hero */}
-      <section className="relative pt-32 pb-20 px-6 overflow-hidden">
-        {/* Subtle background pattern */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-20 right-[10%] w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-10 left-[5%] w-96 h-96 bg-primary/3 rounded-full blur-3xl" />
-          {/* Floating petals */}
-          <svg className="absolute top-32 left-[15%] w-4 h-4 text-primary/20 animate-pulse" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10 2C10 2 4 6 4 10C4 14 10 18 10 18C10 18 16 14 16 10C16 6 10 2 10 2Z" />
-          </svg>
-          <svg className="absolute top-48 right-[20%] w-3 h-3 text-primary/15 animate-pulse" style={{ animationDelay: "1s" }} viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10 2C10 2 4 6 4 10C4 14 10 18 10 18C10 18 16 14 16 10C16 6 10 2 10 2Z" />
-          </svg>
-          <svg className="absolute bottom-32 left-[25%] w-5 h-5 text-primary/10 animate-pulse" style={{ animationDelay: "2s" }} viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10 2C10 2 4 6 4 10C4 14 10 18 10 18C10 18 16 14 16 10C16 6 10 2 10 2Z" />
-          </svg>
-        </div>
-
+      <section className="relative pt-32 pb-20 px-6">
         <div className="max-w-4xl mx-auto text-center relative">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-mint animate-pulse" />
-            <span className="text-xs font-medium text-muted-foreground">安全なチケット取引</span>
-          </div>
-
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-foreground mb-6 leading-[1.1]">
             チケットを、
             <br />
@@ -75,12 +54,12 @@ function HomeContent() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/events">
-              <Button size="lg" className="h-14 px-8 text-base font-medium rounded-full gradient-sakura text-white border-0 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 transition-all duration-200">
+              <Button size="lg" className="h-14 px-8 text-base font-medium gradient-sakura text-white border-0 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 transition-all duration-200">
                 イベントを探す
               </Button>
             </Link>
             <Link href="#how-it-works">
-              <Button variant="ghost" size="lg" className="h-14 px-8 text-base font-medium text-muted-foreground hover:text-foreground rounded-full">
+              <Button variant="ghost" size="lg" className="h-14 px-8 text-base font-medium text-muted-foreground hover:text-foreground">
                 ご利用方法
               </Button>
             </Link>
@@ -156,15 +135,7 @@ function HomeContent() {
       {/* CTA */}
       <section className="py-24 px-6">
         <div className="max-w-3xl mx-auto">
-          <div className="relative rounded-3xl overflow-hidden gradient-sakura p-12 md:p-16 text-center">
-            <div className="absolute inset-0 opacity-10">
-              <svg className="absolute top-4 left-8 w-20 h-20 text-white" viewBox="0 0 100 100" fill="currentColor">
-                <path d="M50 5C50 5 20 25 20 50C20 75 50 95 50 95C50 95 80 75 80 50C80 25 50 5 50 5Z" />
-              </svg>
-              <svg className="absolute bottom-4 right-8 w-16 h-16 text-white" viewBox="0 0 100 100" fill="currentColor">
-                <path d="M50 5C50 5 20 25 20 50C20 75 50 95 50 95C50 95 80 75 80 50C80 25 50 5 50 5Z" />
-              </svg>
-            </div>
+          <div className="relative rounded-2xl overflow-hidden gradient-sakura p-12 md:p-16 text-center">
             <div className="relative">
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">
                 さぁ、始めよう。
@@ -173,7 +144,7 @@ function HomeContent() {
                 あなたの好きなアーティストのライブに行ける、その一歩を。
               </p>
               <Link href="/events">
-                <Button size="lg" className="h-14 px-8 text-base font-medium rounded-full bg-white text-primary hover:bg-white/90 shadow-lg">
+                <Button size="lg" className="h-14 px-8 text-base font-medium bg-white text-primary hover:bg-white/90 shadow-lg">
                   今すぐ始める
                 </Button>
               </Link>
@@ -190,9 +161,9 @@ function HomeContent() {
             <span className="text-xs text-muted-foreground">© 2026</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-muted-foreground">
-            <span>利用規約</span>
-            <span>プライバシーポリシー</span>
-            <span>お問い合わせ</span>
+            <span className="hover:text-foreground transition-colors cursor-pointer">利用規約</span>
+            <span className="hover:text-foreground transition-colors cursor-pointer">プライバシーポリシー</span>
+            <span className="hover:text-foreground transition-colors cursor-pointer">お問い合わせ</span>
           </div>
         </div>
       </footer>

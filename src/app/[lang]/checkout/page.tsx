@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Upload, Clock, Shield, X, Send, Copy, Check } from "lucide-react";
+import { ArrowLeft, Upload, X, Send, Copy, Check } from "lucide-react";
 import Link from "next/link";
 
 export default function CheckoutPage() {
@@ -44,10 +44,21 @@ export default function CheckoutPage() {
     if (input) input.value = "";
   };
 
-  const copyPhone = () => {
-    navigator.clipboard.writeText("08019932477");
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyPhone = async () => {
+    try {
+      await navigator.clipboard.writeText("08019932477");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const input = document.createElement("input");
+      input.value = "08019932477";
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,17 +80,15 @@ export default function CheckoutPage() {
       const formData = new FormData();
       formData.append("email", form.email);
       formData.append("name", form.name);
-      formData.append("eventId", "1");
-      formData.append("tierId", "t1");
+      formData.append("amount", "25000");
       formData.append("screenshot", screenshot);
 
       const res = await fetch("/api/orders", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Server error");
       const data = await res.json();
       if (data.success) {
         setSubmitted(true);
       } else {
-        setError("エラーが発生しました。もう一度お試しください。");
+        setError(data.error || "エラーが発生しました。もう一度お試しください。");
       }
     } catch {
       setError("エラーが発生しました。もう一度お試しください。");
@@ -92,20 +101,18 @@ export default function CheckoutPage() {
     return (
       <main className="min-h-screen bg-background flex items-center justify-center px-6">
         <div className="text-center max-w-md">
-          <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-6">
-            <Clock className="w-8 h-8 text-amber-500" />
+          <div className="w-16 h-16 rounded-xl bg-green-50 flex items-center justify-center mx-auto mb-6">
+            <Check className="w-8 h-8 text-green-500" />
           </div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">注文を受け付けました</h2>
-          <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-            支払い確認中です。約10分以内に確認メールをお送りします。
+          <h2 className="text-2xl font-bold text-foreground mb-2">ご注文ありがとうございます</h2>
+          <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+            お支払い確認のお知らせをお送りしました。確認完了後、電子チケットをメールでお届けします。
           </p>
-          <div className="bg-secondary/50 rounded-xl p-4 mb-8">
-            <p className="text-xs text-muted-foreground">
-              確認完了後、チケット（PDF）をメールでお送りします。
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground/60 mb-8">
+            処理には通常10分程度かかります。
+          </p>
           <Link href="/ja">
-            <Button variant="ghost" className="rounded-full text-muted-foreground">トップに戻る</Button>
+            <Button variant="ghost" className="text-muted-foreground">トップに戻る</Button>
           </Link>
         </div>
       </main>
@@ -213,15 +220,15 @@ export default function CheckoutPage() {
 
             <div className="space-y-2.5">
               <div className="flex items-start gap-3">
-                <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
+                <span className="text-xs font-bold text-primary shrink-0 mt-0.5">1.</span>
                 <p className="text-xs text-muted-foreground">上のボタンでPayPayを開くか、電話番号 <strong className="text-foreground">080-1993-2477</strong> に送金</p>
               </div>
               <div className="flex items-start gap-3">
-                <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                <span className="text-xs font-bold text-primary shrink-0 mt-0.5">2.</span>
                 <p className="text-xs text-muted-foreground">送金完了画面のスクリーンショットを撮影</p>
               </div>
               <div className="flex items-start gap-3">
-                <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
+                <span className="text-xs font-bold text-primary shrink-0 mt-0.5">3.</span>
                 <p className="text-xs text-muted-foreground">下のフォームにアップロードして送信</p>
               </div>
             </div>
@@ -282,7 +289,8 @@ export default function CheckoutPage() {
                   <button
                     type="button"
                     onClick={removeFile}
-                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-foreground/80 flex items-center justify-center text-white hover:bg-foreground transition-colors"
+                    aria-label="ファイルを削除"
+                    className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-foreground/80 flex items-center justify-center text-white hover:bg-foreground transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -323,11 +331,6 @@ export default function CheckoutPage() {
               </span>
             )}
           </Button>
-
-          <div className="flex items-center justify-center gap-1.5">
-            <Shield className="w-3 h-3 text-muted-foreground/40" />
-            <span className="text-[10px] text-muted-foreground/40">安全な取引</span>
-          </div>
         </form>
       </div>
     </main>
