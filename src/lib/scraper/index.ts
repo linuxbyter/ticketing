@@ -51,13 +51,14 @@ export async function runScrapers(): Promise<{
   pia: number;
   total: number;
 }> {
-  const eplusResults = await scrapeEplus();
+  const [eplusResults, livefansResults, piaResults] = await Promise.all([
+    scrapeEplus().catch(() => []),
+    scrapeLivefans().catch(() => []),
+    scrapePia().catch(() => []),
+  ]);
+
   const eplusSaved = await saveEvents("eplus", eplusResults);
-
-  const livefansResults = await scrapeLivefans();
   const livefansSaved = await saveEvents("livefans", livefansResults);
-
-  const piaResults = await scrapePia();
   const piaSaved = await saveEvents("pia", piaResults);
 
   return {

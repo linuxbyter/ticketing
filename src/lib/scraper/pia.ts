@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 const BASE_URL = "https://t.pia.jp";
 const MUSIC_URL = `${BASE_URL}/music/`;
 const EVENT_URL = `${BASE_URL}/event/`;
-const DELAY_MS = 20000;
+const DELAY_MS = 3000;
 
 const HEADERS = {
   "User-Agent":

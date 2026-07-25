@@ -1,0 +1,141 @@
+# Plan: Self-Running Event Scraper System
+
+## Overview
+Build an autonomous event ingestion pipeline that:
+1. Scrapes Japanese event sites (eplus.jp, livefans.jp, pia.co.jp)
+2. Uses AI to parse and structure the data
+3. Auto-creates events in the database
+4. Runs on a schedule (Vercel cron) + on-demand via AI agent
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Vercel Cron (every 6 hours)                        │
+│  GET /api/cron/scrape-events                        │
+└──────────────┬──────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────┐
+│  Scraper Service (src/lib/scraper/)                 │
+│  ├─ eplus.ts      (cheerio, sitemap-based)          │
+│  ├─ livefans.ts   (cheerio, search pages)           │
+│  ├─ pia.ts        (cheerio, music/event sections)   │
+│  └─ index.ts      (coordinator + dedup)             │
+└──────────────┬──────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────┐
+│  AI Parser (src/lib/ai/parse-event.ts)              │
+│  Uses NVIDIA NIM to extract/structure event data    │
+└──────────────┬──────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────┐
+│  DB (scraped_events table + events table)           │
+│  Tracks what's been scraped, prevents duplicates    │
+└─────────────────────────────────────────────────────┘
+```
+
+## Implementation Steps
+
+### 1. Install dependencies
+```bash
+npm install cheerio
+```
+(cheerio only — lightweight HTML parser, no browser needed)
+
+### 2. Create `scraped_events` table in schema
+Tracks scraped events to prevent duplicates:
+- id, source (eplus/livefans/pia), source_url (unique), title, venue, event_date, image_url, raw_html, status (pending/created/ignored), created_at
+
+### 3. Create scraper modules (`src/lib/scraper/`)
+
+**eplus.ts** — Scrape eplus.jp sitemaps:
+- Fetch `https://eplus.jp/s/eplus.jp/sitemap_daily_kkn.xml`
+- Parse XML for event URLs
+- Fetch each event page, extract: title, date, venue, image
+- Rate limit: 20s between requests
+
+**livefans.ts** — Scrape livefans.jp search:
+- Fetch `https://www.livefans.jp/search/` pages
+- Parse HTML for event listings
+- Extract: title, date, venue, artist
+- Rate limit: 15s between requests
+
+**pia.ts** — Scrape t.pia.jp sections:
+- Fetch `https://t.pia.jp/music/` and `/event/` pages
+- Parse HTML for event cards
+- Extract: title, date, venue, image
+- Rate limit: 20s between requests
+
+**index.ts** — Coordinator:
+- Run all scrapers in sequence (not parallel)
+- Deduplicate by source_url
+- Insert new events into `scraped_events` table
+- Return count of new events found
+
+### 4. Create AI event parser (`src/lib/ai/parse-event.ts`)
+- Takes raw scraped data (title, date string, venue, etc.)
+- Uses NVIDIA NIM to normalize:
+  - Parse Japanese date strings → ISO dates
+  - Extract venue names → standardize
+  - Generate English/Chinese translations of titles
+  - Determine ticket tier suggestions
+- Returns structured event object ready for DB insertion
+
+### 5. Create cron API route (`src/app/api/cron/scrape-events/route.ts`)
+- GET endpoint (Vercel cron sends GET)
+- Protected with CRON_SECRET env var
+- Calls scraper coordinator
+- Auto-creates events from pending scraped_events
+- Returns JSON summary
+
+### 6. Create `vercel.json` for cron schedule
+```json
+{
+  "crons": [{
+    "path": "/api/cron/scrape-events",
+    "schedule": "0 */6 * * *"
+  }]
+}
+```
+
+### 7. Add AI tools to existing agent (`src/lib/ai/nvidia.ts`)
+- `scrape_events_now` — Trigger immediate scrape
+- `list_scraped_events` — Show pending scraped events
+- `approve_scraped_event` — Approve and create from scraped data
+
+### 8. Add admin UI (`src/app/kicheleboyz/scraped/page.tsx`)
+- List pending scraped events
+- Approve/reject each
+- Edit before creating
+- Manual trigger button
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `package.json` | Add `cheerio` |
+| `src/lib/db/schema.ts` | Add `scrapedEvents` table |
+| `src/lib/scraper/eplus.ts` | New — e+ scraper |
+| `src/lib/scraper/livefans.ts` | New — livefans scraper |
+| `src/lib/scraper/pia.ts` | New — pia scraper |
+| `src/lib/scraper/index.ts` | New — coordinator |
+| `src/lib/ai/parse-event.ts` | New — AI parser |
+| `src/app/api/cron/scrape-events/route.ts` | New — cron endpoint |
+| `src/lib/ai/nvidia.ts` | Add scraper tools |
+| `src/app/kicheleboyz/scraped/page.tsx` | New — admin UI |
+| `src/components/admin-sidebar.tsx` | Add "Scraped" nav link |
+| `vercel.json` | New — cron config |
+| `.env.local` | Add CRON_SECRET |
+
+## Environment Variables
+- `CRON_SECRET` — Random string for cron route protection
+
+## Rate Limits & Safety
+- 20s delay between requests per site
+- Max 50 events per scrape run
+- Dedup by source_url
+- All events created as "draft" status by default
+- Admin must approve before going live

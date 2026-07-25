@@ -2,7 +2,7 @@ import * as cheerio from "cheerio";
 
 const BASE_URL = "https://eplus.jp";
 const SITEMAP_URL = "https://eplus.jp/s/eplus.jp/sitemap_weekly.xml";
-const DELAY_MS = 20000;
+const DELAY_MS = 3000;
 
 const HEADERS = {
   "User-Agent":
@@ -52,7 +52,7 @@ async function parseSitemap(): Promise<string[]> {
       urls.push(url);
     }
   }
-  return urls.slice(0, 30);
+  return urls.slice(0, 10);
 }
 
 async function scrapeEventPage(url: string): Promise<ScrapedEvent | null> {

@@ -2,7 +2,7 @@ import * as cheerio from "cheerio";
 
 const BASE_URL = "https://www.livefans.jp";
 const SEARCH_URL = `${BASE_URL}/search/`;
-const DELAY_MS = 15000;
+const DELAY_MS = 3000;
 
 const HEADERS = {
   "User-Agent":
@@ -82,7 +82,7 @@ async function scrapeSearchPage(page: number): Promise<ScrapedEvent[]> {
 export async function scrapeLivefans(): Promise<ScrapedEvent[]> {
   const results: ScrapedEvent[] = [];
 
-  for (let page = 1; page <= 3; page++) {
+  for (let page = 1; page <= 2; page++) {
     const events = await scrapeSearchPage(page);
     results.push(...events);
     await sleep(DELAY_MS);
